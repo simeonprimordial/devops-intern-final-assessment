@@ -262,21 +262,6 @@ Stop the monitoring stack:
 docker compose -f monitoring/docker-compose.yml down
 ```
 
----
-
-## Screenshot Evidence
-
-The `screenshots/` directory contains a checklist for the evidence to capture before submission. Recommended evidence includes:
-
-- GitHub repository and Python application output.
-- Linux system-information script output.
-- Docker build and container execution.
-- Passing GitHub Actions workflow.
-- Nomad job status/allocation logs.
-- Loki query containing the application logs.
-
-Do not include passwords, access tokens, or other secrets in screenshots.
-
 ## Final Deliverables
 
 This repository includes the files required by the assessment:
