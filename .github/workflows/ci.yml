@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  run-hello:
+  validate-devops-pipeline:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +20,86 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Validate Python syntax
+        run: python -m py_compile hello.py
+
       - name: Run hello application
-        run: python hello.py
+        run: |
+          output="$(python hello.py)"
+          echo "$output"
+          echo "$output" | grep -F "Hello, DevOps!"
+
+      - name: Validate shell script syntax
+        run: bash -n scripts/sysinfo.sh
 
       - name: Run Linux system information script
         run: bash scripts/sysinfo.sh
+
+      - name: Build Docker image
+        run: docker build -t devops-hello:1.0 .
+
+      - name: Run and verify Docker container
+        run: |
+          output="$(docker run --rm devops-hello:1.0)"
+          echo "$output"
+          echo "$output" | grep -F "Hello, DevOps!"
+
+      - name: Validate Docker Compose configuration
+        run: docker compose -f monitoring/docker-compose.yml config --quiet
+
+      - name: Check Nomad job formatting
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/nomad:/workspace" \
+            -w /workspace \
+            hashicorp/nomad:latest \
+            fmt -check hello.nomad
+
+      - name: Validate Nomad job specification
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/nomad:/workspace" \
+            -w /workspace \
+            hashicorp/nomad:latest \
+            job validate hello.nomad
+
+      - name: Start Grafana Loki and Alloy
+        run: docker compose -f monitoring/docker-compose.yml up -d
+
+      - name: Wait for Loki readiness
+        run: |
+          curl --fail --silent --show-error \
+            --retry 20 --retry-delay 2 --retry-connrefused \
+            http://localhost:3100/ready
+
+      - name: Generate container logs
+        run: |
+          docker run -d \
+            --name devops-hello-monitor \
+            devops-hello:1.0 \
+            /bin/sh -c 'while true; do python hello.py; sleep 2; done'
+          sleep 10
+          docker logs devops-hello-monitor
+
+      - name: Verify application logs reached Loki
+        run: |
+          curl -G --fail --silent --show-error \
+            "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={service_name="devops-hello-monitor"}' \
+            --data-urlencode 'limit=20' \
+            | tee /tmp/loki-query.json
+          grep -F "Hello, DevOps!" /tmp/loki-query.json
+
+      - name: Show monitoring logs
+        if: always()
+        run: |
+          echo "=== Loki logs ==="
+          docker logs loki 2>&1 | tail -n 80 || true
+          echo "=== Alloy logs ==="
+          docker logs alloy 2>&1 | tail -n 80 || true
+
+      - name: Clean up containers
+        if: always()
+        run: |
+          docker rm -f devops-hello-monitor 2>/dev/null || true
+          docker compose -f monitoring/docker-compose.yml down -v || true
