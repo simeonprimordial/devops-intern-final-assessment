@@ -46,8 +46,6 @@ devops-intern-final-assessment/
 │   └── loki_setup.txt
 ├── nomad/
 │   └── hello.nomad
-├── screenshots/
-│   └── README.md
 ├── scripts/
 │   └── sysinfo.sh
 ├── .dockerignore
