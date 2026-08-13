@@ -1,0 +1,70 @@
+Grafana Loki Monitoring Setup
+=============================
+
+Purpose
+-------
+This setup collects Docker container logs with Grafana Alloy and forwards them to a local Grafana Loki instance.
+
+Prerequisites
+-------------
+- Docker Desktop or Docker Engine
+- Docker Compose
+- The devops-hello:1.0 image built from the repository Dockerfile
+
+1. Start Loki and Alloy
+-----------------------
+From the repository root, run:
+
+  docker compose -f monitoring/docker-compose.yml up -d
+
+Verify both containers:
+
+  docker ps
+
+Verify Loki readiness:
+
+  curl http://localhost:3100/ready
+
+Expected response:
+
+  ready
+
+2. Generate application logs
+----------------------------
+Run the application long enough for Alloy to discover the container and collect several log lines:
+
+  docker run --rm --name devops-hello-monitor devops-hello:1.0 /bin/sh -c 'for i in 1 2 3 4 5; do python hello.py; sleep 2; done'
+
+Expected application output includes:
+
+  Hello, DevOps!
+
+3. Query the logs stored in Loki
+--------------------------------
+Run:
+
+  curl -G -s "http://localhost:3100/loki/api/v1/query_range" --data-urlencode 'query={service_name="devops-hello-monitor"}'
+
+The JSON response should contain log entries with the text "Hello, DevOps!".
+
+4. Useful troubleshooting commands
+-----------------------------------
+
+  docker logs loki
+  docker logs alloy
+  docker compose -f monitoring/docker-compose.yml ps
+
+Grafana Alloy UI:
+
+  http://localhost:12345
+
+5. Stop the monitoring stack
+----------------------------
+
+  docker compose -f monitoring/docker-compose.yml down
+
+Suggested evidence
+------------------
+Take a screenshot showing either:
+- the Loki query response containing "Hello, DevOps!", or
+- the Alloy UI plus the terminal output proving the log collection path is working.
