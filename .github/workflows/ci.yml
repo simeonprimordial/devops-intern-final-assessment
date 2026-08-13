@@ -32,6 +32,9 @@ jobs:
       - name: Validate shell script syntax
         run: bash -n scripts/sysinfo.sh
 
+      - name: Validate local verification helper
+        run: bash -n scripts/verify_local.sh
+
       - name: Run Linux system information script
         run: bash scripts/sysinfo.sh
 
